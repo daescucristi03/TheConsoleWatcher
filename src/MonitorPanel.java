@@ -50,9 +50,17 @@ public class MonitorPanel extends JPanel {
                  g2.drawString("[ ! OPEN ! ]", padding + 60, boxY + 70);
             }
         }
+        
+        // Draw Time
+        int timeY = 200;
+        g2.setColor(Theme.CRT_GREEN);
+        g2.setFont(new Font("Monospaced", Font.BOLD, 24));
+        String timeStr = String.format("%d:%02d AM", gameState.getCurrentHour(), gameState.getCurrentMinute());
+        g2.drawString(timeStr, padding, timeY);
 
         // Draw Power Level
-        int powerY = 200;
+        int powerY = 240;
+        g2.setFont(Theme.RETRO_FONT);
         g2.setColor(Theme.CRT_GREEN);
         g2.drawString("POWER LEVEL:", padding, powerY);
         
@@ -71,7 +79,7 @@ public class MonitorPanel extends JPanel {
         if (gameState.isEntityNear()) {
             g2.setColor(Theme.ALERT_RED);
             g2.setFont(new Font("Monospaced", Font.BOLD, 24));
-            g2.drawString("! PROXIMITY ALERT !", padding, 300);
+            g2.drawString("! PROXIMITY ALERT !", padding, 340);
         }
         
         // Current Camera Lock Status
@@ -79,15 +87,15 @@ public class MonitorPanel extends JPanel {
             int cam = gameState.getCurrentCamera();
             g2.setColor(Theme.CRT_GREEN);
             g2.setFont(Theme.RETRO_FONT);
-            g2.drawString("CAM " + cam + " LOCK STATUS:", padding, 350);
+            g2.drawString("CAM " + cam + " LOCK STATUS:", padding, 390);
             
             boolean locked = gameState.isRoomLocked(cam);
             if (locked) {
                 g2.setColor(Theme.CRT_GREEN);
-                g2.drawString("[ LOCKED ]", padding, 370);
+                g2.drawString("[ LOCKED ]", padding, 410);
             } else {
                 g2.setColor(Theme.CRT_AMBER);
-                g2.drawString("[ UNLOCKED ]", padding, 370);
+                g2.drawString("[ UNLOCKED ]", padding, 410);
             }
         }
     }

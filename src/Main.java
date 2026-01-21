@@ -8,6 +8,10 @@ public class Main extends JFrame {
     private JumpscarePanel jumpscarePanel;
     private DeathScreenPanel deathScreenPanel;
     private int selectedDifficulty = 2; // Default Normal
+    
+    // Game Progression
+    private int currentNight = 1;
+    private final int MAX_NIGHTS = 5;
 
     public Main() {
         setTitle("The Console Watcher");
@@ -21,11 +25,12 @@ public class Main extends JFrame {
         deathScreenPanel = new DeathScreenPanel(this);
         
         mainPanel.add(new MainMenuPanel(this), "MENU");
-        mainPanel.add(new DifficultyPanel(this), "DIFFICULTY"); // Add difficulty panel
+        mainPanel.add(new DifficultyPanel(this), "DIFFICULTY");
         mainPanel.add(new OptionsPanel(this), "OPTIONS");
         mainPanel.add(new TutorialPanel(this), "TUTORIAL");
         mainPanel.add(jumpscarePanel, "JUMPSCARE");
         mainPanel.add(deathScreenPanel, "DEATH");
+        mainPanel.add(new WinPanel(this), "WIN");
         
         add(mainPanel);
         
@@ -40,8 +45,13 @@ public class Main extends JFrame {
     public int getDifficulty() {
         return selectedDifficulty;
     }
+    
+    public int getCurrentNight() {
+        return currentNight;
+    }
 
     public void showMainMenu() {
+        currentNight = 1; // Reset progress on menu
         cardLayout.show(mainPanel, "MENU");
     }
     
@@ -65,11 +75,29 @@ public class Main extends JFrame {
     public void showDeathScreen() {
         showDeathScreen("CONNECTION TERMINATED");
     }
+    
+    public void showWinScreen() {
+        cardLayout.show(mainPanel, "WIN");
+    }
 
     public void startGame() {
-        // Create a new GamePanel each time to reset state, passing difficulty
-        mainPanel.add(new GamePanel(this, selectedDifficulty), "GAME");
+        // Start Night 1 or continue
+        startNight();
+    }
+    
+    public void startNight() {
+        // Create a new GamePanel for the current night
+        mainPanel.add(new GamePanel(this, selectedDifficulty, currentNight), "GAME");
         cardLayout.show(mainPanel, "GAME");
+    }
+    
+    public void completeNight() {
+        if (currentNight < MAX_NIGHTS) {
+            currentNight++;
+            startNight(); // Immediately start next night (GamePanel handles the transition screen)
+        } else {
+            showWinScreen();
+        }
     }
     
     public void triggerGameOver() {

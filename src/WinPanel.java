@@ -1,11 +1,10 @@
 import javax.swing.*;
 import java.awt.*;
 
-public class DeathScreenPanel extends JPanel {
+public class WinPanel extends JPanel {
     private Main mainFrame;
-    private JLabel causeLabel;
 
-    public DeathScreenPanel(Main mainFrame) {
+    public WinPanel(Main mainFrame) {
         this.mainFrame = mainFrame;
         setLayout(new GridBagLayout());
         setBackground(Color.BLACK);
@@ -15,49 +14,49 @@ public class DeathScreenPanel extends JPanel {
         gbc.anchor = GridBagConstraints.CENTER;
         gbc.insets = new Insets(20, 0, 20, 0);
 
-        JLabel titleLabel = new JLabel("TRANSMISSION TERMINATED");
+        JLabel titleLabel = new JLabel("MISSION ACCOMPLISHED");
         titleLabel.setFont(new Font("Monospaced", Font.BOLD, 48));
-        titleLabel.setForeground(Color.RED);
+        titleLabel.setForeground(Theme.CRT_GREEN);
         add(titleLabel, gbc);
         
-        causeLabel = new JLabel("CONNECTION LOST");
-        causeLabel.setFont(Theme.RETRO_FONT);
-        causeLabel.setForeground(Color.RED);
-        add(causeLabel, gbc);
-
-        JButton retryButton = createRetroButton("REBOOT SYSTEM");
-        retryButton.addActionListener(e -> mainFrame.startGame());
-        add(retryButton, gbc);
+        JTextArea details = new JTextArea(
+            "THE ENTITY HAS BEEN CAPTURED BY SECURITY TEAMS.\n" +
+            "CONTAINMENT PROTOCOLS RESTORED.\n" +
+            "THE ASSET IS SECURE.\n\n" +
+            "EXCELLENT WORK, OPERATOR."
+        );
+        details.setFont(Theme.RETRO_FONT);
+        details.setForeground(Theme.CRT_GREEN);
+        details.setBackground(Color.BLACK);
+        details.setEditable(false);
+        details.setHighlighter(null);
+        add(details, gbc);
 
         JButton menuButton = createRetroButton("RETURN TO MENU");
         menuButton.addActionListener(e -> mainFrame.showMainMenu());
         add(menuButton, gbc);
     }
-    
-    public void setCause(String cause) {
-        causeLabel.setText(cause);
-    }
 
     private JButton createRetroButton(String text) {
         JButton button = new JButton(text);
         button.setFont(Theme.RETRO_FONT);
-        button.setForeground(Color.RED);
+        button.setForeground(Theme.CRT_GREEN);
         button.setBackground(Color.BLACK);
-        button.setBorder(BorderFactory.createLineBorder(Color.RED, 2));
+        button.setBorder(BorderFactory.createLineBorder(Theme.CRT_GREEN, 2));
         button.setFocusPainted(false);
         button.setContentAreaFilled(false);
         button.setOpaque(true);
         
         button.addMouseListener(new java.awt.event.MouseAdapter() {
             public void mouseEntered(java.awt.event.MouseEvent evt) {
-                button.setBackground(Color.RED);
+                button.setBackground(Theme.CRT_GREEN);
                 button.setForeground(Color.BLACK);
                 SoundManager.playKeyClick();
             }
 
             public void mouseExited(java.awt.event.MouseEvent evt) {
                 button.setBackground(Color.BLACK);
-                button.setForeground(Color.RED);
+                button.setForeground(Theme.CRT_GREEN);
             }
         });
         

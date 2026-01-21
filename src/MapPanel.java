@@ -22,7 +22,6 @@ public class MapPanel extends JPanel {
     public MapPanel(GameState gameState) {
         this.gameState = gameState;
         setBackground(Theme.CRT_BLACK);
-        // Removed preferred size to allow filling parent
         setBorder(BorderFactory.createLineBorder(Theme.CRT_GREEN));
         
         setupLayout();
@@ -32,8 +31,6 @@ public class MapPanel extends JPanel {
             public void mouseClicked(MouseEvent e) {
                 if (!gameState.isCameraSystemActive()) return;
                 
-                // Adjust click point by inverse translation and scale
-                // p = (click - trans) / scale
                 int clickX = e.getX();
                 int clickY = e.getY();
                 
@@ -42,7 +39,6 @@ public class MapPanel extends JPanel {
                 
                 Point p = new Point((int)unscaledX, (int)unscaledY);
                 
-                // Check rooms
                 for (Map.Entry<Integer, Rectangle> entry : roomRects.entrySet()) {
                     if (entry.getValue().contains(p)) {
                         gameState.setCurrentCamera(entry.getKey());
@@ -52,9 +48,8 @@ public class MapPanel extends JPanel {
                     }
                 }
                 
-                // Check Office
                 if (officeRect.contains(p)) {
-                    gameState.setCurrentCamera(0); // 0 is Office
+                    gameState.setCurrentCamera(0); 
                     SoundManager.playKeyClick();
                     repaint();
                 }
@@ -63,39 +58,34 @@ public class MapPanel extends JPanel {
     }
     
     private void setupLayout() {
-        // Custom Layout: 12 Rooms + Office
-        // Increased size for easier clicking
-        int w = 70; 
-        int h = 50; 
-        int centerX = 200;
-        int centerY = 150;
+        int w = 60; 
+        int h = 40; 
+        int cx = 200;
+        int cy = 150;
         
-        // Center Hub
-        roomRects.put(1, new Rectangle(centerX, centerY, w, h)); // Main Corridor
+        roomRects.put(1, createRect(cx, cy, w, h)); // Main Corridor
+        officeRect = createRect(cx, cy + 100, w, h); // Office
         
-        // Top Path
-        roomRects.put(4, new Rectangle(centerX, centerY - 80, w, h)); // Research Lab
-        roomRects.put(5, new Rectangle(centerX, centerY - 160, w, h)); // Containment
+        roomRects.put(2, createRect(cx - 80, cy, w, h)); // Server Room
+        roomRects.put(3, createRect(cx + 80, cy, w, h)); // Cargo Bay
         
-        // Left Wing
-        roomRects.put(2, new Rectangle(centerX - 100, centerY, w, h)); // Server Room
-        roomRects.put(6, new Rectangle(centerX - 100, centerY + 80, w, h)); // Ventilation
-        roomRects.put(8, new Rectangle(centerX - 180, centerY, w, h)); // Archive
+        roomRects.put(4, createRect(cx, cy - 70, w, h)); // Research Lab
+        roomRects.put(5, createRect(cx, cy - 140, w, h)); // Containment
         
-        // Moved Cam 12 (Observation Deck) above Cam 8 (Archive)
-        roomRects.put(12, new Rectangle(centerX - 180, centerY - 80, w, h)); // Observation Deck
+        roomRects.put(6, createRect(cx - 80, cy + 100, w, h)); // Ventilation
+        roomRects.put(7, createRect(cx + 80, cy + 100, w, h)); // Maintenance
         
-        // Right Wing
-        roomRects.put(3, new Rectangle(centerX + 100, centerY, w, h)); // Cargo Bay
-        roomRects.put(7, new Rectangle(centerX + 100, centerY + 80, w, h)); // Maintenance
-        roomRects.put(9, new Rectangle(centerX + 180, centerY, w, h)); // Generator Room
+        roomRects.put(8, createRect(cx - 160, cy, w, h)); // Archive
+        roomRects.put(9, createRect(cx + 160, cy, w, h)); // Generator
         
-        // Far Left/Right Extensions
-        roomRects.put(10, new Rectangle(centerX - 100, centerY - 80, w, h)); // Med Bay (Left of Research)
-        roomRects.put(11, new Rectangle(centerX + 180, centerY - 80, w, h)); // Armory (Right of Research/Above Generator)
+        roomRects.put(10, createRect(cx - 80, cy - 70, w, h)); // Med Bay
+        roomRects.put(12, createRect(cx - 80, cy - 140, w, h)); // Observation
         
-        // Office (Player)
-        officeRect = new Rectangle(centerX, 280, w, h);
+        roomRects.put(11, createRect(cx, cy - 210, w, h)); // Armory
+    }
+    
+    private Rectangle createRect(int cx, int cy, int w, int h) {
+        return new Rectangle(cx - w/2, cy - h/2, w, h);
     }
 
     @Override
@@ -107,40 +97,29 @@ public class MapPanel extends JPanel {
         int panelW = getWidth();
         int panelH = getHeight();
         
-        // Calculate map bounds to determine scale
-        // Min/Max X and Y from setupLayout
-        // X range: approx 20 - 380 (width ~360)
-        // Y range: approx -100 - 330 (height ~430)
-        // Let's define a logical bounding box for the map content
         int mapMinX = 0;
         int mapMaxX = 400;
-        int mapMinY = -100;
-        int mapMaxY = 350;
+        int mapMinY = -80; 
+        int mapMaxY = 300; 
         
         int mapWidth = mapMaxX - mapMinX;
         int mapHeight = mapMaxY - mapMinY;
         
-        // Calculate scale to fit
-        double scaleX = (double) (panelW - 40) / mapWidth; // 20px padding
+        double scaleX = (double) (panelW - 40) / mapWidth; 
         double scaleY = (double) (panelH - 40) / mapHeight;
         scale = Math.min(scaleX, scaleY);
+        scale = Math.min(scale, 1.5); 
         
-        // Limit max scale to avoid it looking too huge on large screens
-        scale = Math.min(scale, 1.5);
-        
-        // Center the scaled map
         int scaledMapWidth = (int) (mapWidth * scale);
         int scaledMapHeight = (int) (mapHeight * scale);
         
         transX = (panelW - scaledMapWidth) / 2 - (int)(mapMinX * scale);
         transY = (panelH - scaledMapHeight) / 2 - (int)(mapMinY * scale);
         
-        // Apply transformations
         g2.translate(transX, transY);
         g2.scale(scale, scale);
 
         if (!gameState.isCameraSystemActive()) {
-            // Reset for full screen fill
             g2.scale(1.0/scale, 1.0/scale);
             g2.translate(-transX, -transY);
             
@@ -157,58 +136,45 @@ public class MapPanel extends JPanel {
         // Draw Connections (Lines)
         g2.setStroke(new BasicStroke(2));
         
-        // 1 -> 4 -> 5 -> 12
         drawConnection(g2, 1, 4);
         drawConnection(g2, 4, 5);
-        drawConnection(g2, 5, 12);
-        
-        // 1 -> 2 -> 6 -> 0
         drawConnection(g2, 1, 2);
-        drawConnection(g2, 2, 6);
-        drawConnectionToOffice(g2, 6);
-        
-        // 1 -> 3 -> 7 -> 0
         drawConnection(g2, 1, 3);
-        drawConnection(g2, 3, 7);
-        drawConnectionToOffice(g2, 7);
-        
-        // 1 -> 0
-        drawConnectionToOffice(g2, 1);
-        
-        // 2 -> 8 -> 11
         drawConnection(g2, 2, 8);
-        drawConnection(g2, 8, 11);
-        
-        // 3 -> 9 -> 11
         drawConnection(g2, 3, 9);
-        drawConnection(g2, 9, 11);
-        
-        // 4 -> 10 -> 12
+        drawConnection(g2, 2, 6);
+        drawConnection(g2, 3, 7);
+        drawConnectionToOffice(g2, 6);
+        drawConnectionToOffice(g2, 7);
+        drawConnectionToOffice(g2, 1);
         drawConnection(g2, 4, 10);
         drawConnection(g2, 10, 12);
+        drawConnection(g2, 5, 12);
+        drawConnection(g2, 8, 11);
+        drawConnection(g2, 9, 11);
         
         // --- Draw Vents ---
         // Vent 1: Containment (5) <-> Cargo Bay (3)
-        drawVent(g2, 5, 3);
+        // Offset to avoid crossing Main Corridor (1) and Research (4)
+        drawVent(g2, 5, 3, 40); 
         
         // Vent 2: Research Lab (4) <-> Server Room (2)
-        drawVent(g2, 4, 2);
+        // Offset to avoid crossing Main Corridor (1)
+        drawVent(g2, 4, 2, -30);
         
         // Vent 3: Observation Deck (12) <-> Archive (8)
-        drawVent(g2, 12, 8);
+        // Offset to avoid crossing Med Bay (10) and Server Room (2)
+        drawVent(g2, 12, 8, -40);
 
         // Draw Rooms
         for (Map.Entry<Integer, Rectangle> entry : roomRects.entrySet()) {
             int id = entry.getKey();
             Rectangle r = entry.getValue();
-            
             drawRoom(g2, r, id, "CAM " + id);
         }
         
-        // Draw "YOU" (Office)
         drawRoom(g2, officeRect, 0, "YOU");
         
-        // Draw Asset Marker (Global visibility)
         int assetLoc = gameState.getAssetLocation();
         if (roomRects.containsKey(assetLoc)) {
             Rectangle r = roomRects.get(assetLoc);
@@ -216,11 +182,9 @@ public class MapPanel extends JPanel {
             g2.fillOval(r.x + r.width - 15, r.y + 5, 10, 10);
         }
         
-        // Reset translation for static overlay
         g2.scale(1.0/scale, 1.0/scale);
         g2.translate(-transX, -transY);
         
-        // Static overlay effect
         g2.setColor(new Color(0, 255, 65, 20));
         for (int i = 0; i < panelH; i += 4) {
             g2.drawLine(0, i, panelW, i);
@@ -228,7 +192,6 @@ public class MapPanel extends JPanel {
     }
     
     private void drawRoom(Graphics2D g2, Rectangle r, int id, String label) {
-        // Highlight selected camera
         if (gameState.getCurrentCamera() == id) {
             g2.setColor(Theme.CRT_AMBER);
             g2.fillRect(r.x, r.y, r.width, r.height);
@@ -241,20 +204,14 @@ public class MapPanel extends JPanel {
         
         g2.drawRect(r.x, r.y, r.width, r.height);
         g2.setFont(new Font("Monospaced", Font.BOLD, 10));
-        
-        // Short names
         g2.drawString(label, r.x + 5, r.y + 15);
         
-        // Lock Status Icon
         boolean locked = (id == 0) ? gameState.isOfficeDoorLocked() : gameState.isRoomLocked(id);
         if (locked) {
             g2.setFont(new Font("Monospaced", Font.BOLD, 9));
             g2.drawString("[L]", r.x + r.width - 20, r.y + 15);
         }
         
-        // Draw Entity
-        // Difficulty 3 (Hard): Only visible if on current camera
-        // Difficulty 1, 2: Always visible
         boolean visible = true;
         if (gameState.getDifficultyLevel() == 3) {
             visible = (gameState.getCurrentCamera() == id);
@@ -281,18 +238,9 @@ public class MapPanel extends JPanel {
         int x2 = r2.x + r2.width/2;
         int y2 = r2.y + r2.height/2;
         
-        // Special routing for specific pairs to avoid overlaps
-        if ((id1 == 8 && id2 == 11) || (id1 == 11 && id2 == 8)) {
-            // U-shape over the top
-            int topY = -100; // Above everything
-            g2.drawLine(x1, y1, x1, topY);
-            g2.drawLine(x1, topY, x2, topY);
-            g2.drawLine(x2, topY, x2, y2);
-        } else if ((id1 == 10 && id2 == 12) || (id1 == 12 && id2 == 10)) {
-            // Vertical first to avoid Room 4
-            drawOrthogonal(g2, x1, y1, x2, y2, true);
+        if (id1 == 11 || id2 == 11) {
+            drawOrthogonal(g2, x1, y1, x2, y2, true); 
         } else {
-            // Default Horizontal first
             drawOrthogonal(g2, x1, y1, x2, y2, false);
         }
     }
@@ -311,18 +259,15 @@ public class MapPanel extends JPanel {
         int x2 = officeRect.x + officeRect.width/2;
         int y2 = officeRect.y + officeRect.height/2;
         
-        // Horizontal first (L-shape) works well for 6->0 and 7->0
         drawOrthogonal(g2, x1, y1, x2, y2, false);
     }
     
-    private void drawVent(Graphics2D g2, int id1, int id2) {
+    private void drawVent(Graphics2D g2, int id1, int id2, int offset) {
         Rectangle r1 = roomRects.get(id1);
         Rectangle r2 = roomRects.get(id2);
         
         g2.setColor(Color.GRAY);
         Stroke originalStroke = g2.getStroke();
-        
-        // Dashed line for vents
         g2.setStroke(new BasicStroke(2, BasicStroke.CAP_BUTT, BasicStroke.JOIN_BEVEL, 0, new float[]{9}, 0));
         
         int x1 = r1.x + r1.width/2;
@@ -330,11 +275,36 @@ public class MapPanel extends JPanel {
         int x2 = r2.x + r2.width/2;
         int y2 = r2.y + r2.height/2;
         
-        drawOrthogonal(g2, x1, y1, x2, y2, false);
+        // Draw with offset to avoid corridors
+        // We'll go out horizontally/vertically by 'offset' amount before turning
+        
+        // Simple logic: Move X or Y by offset, then connect
+        // If offset is positive, we might go Right/Down. Negative: Left/Up.
+        
+        // Strategy: 
+        // 1. Move from center of R1 to edge + offset
+        // 2. Move parallel to destination
+        // 3. Move to center of R2
+        
+        // Let's try a 3-segment line approach for vents to route around things
+        
+        if (Math.abs(x1 - x2) > Math.abs(y1 - y2)) {
+            // Mostly horizontal separation
+            int midY = y1 + offset;
+            g2.drawLine(x1, y1, x1, midY);
+            g2.drawLine(x1, midY, x2, midY);
+            g2.drawLine(x2, midY, x2, y2);
+        } else {
+            // Mostly vertical separation
+            int midX = x1 + offset;
+            g2.drawLine(x1, y1, midX, y1);
+            g2.drawLine(midX, y1, midX, y2);
+            g2.drawLine(midX, y2, x2, y2);
+        }
         
         g2.setStroke(originalStroke);
     }
-    
+
     private void drawOrthogonal(Graphics2D g2, int x1, int y1, int x2, int y2, boolean verticalFirst) {
         if (verticalFirst) {
             g2.drawLine(x1, y1, x1, y2);

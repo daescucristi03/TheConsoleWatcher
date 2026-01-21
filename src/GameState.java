@@ -38,6 +38,10 @@ public class GameState {
     private boolean isCameraSystemActive = false;
     private boolean isAssetMoving = false; // Flag to check if asset is currently moving
     
+    // Time Tracking
+    private int currentHour = 12; // 12 AM
+    private int currentMinute = 0; // Start at the top of the hour
+    
     // Adjacency Map for movement
     private Map<Integer, List<Integer>> mapConnections = new HashMap<>();
     
@@ -175,8 +179,7 @@ public class GameState {
     }
     
     public void moveEntity() {
-        // If asset is moving, entity pauses
-        if (isAssetMoving) return;
+        if (isAssetMoving) return; // Entity pauses while asset is moving
         
         List<Integer> neighbors = mapConnections.get(entityLocation);
         List<Integer> vents = ventConnections.get(entityLocation);
@@ -245,35 +248,11 @@ public class GameState {
         return assetLocation;
     }
     
-    // BFS to find path for asset
-    public boolean moveAsset(int targetRoom) {
-        // Asset cannot move to 0 (Office) for safety reasons? Or maybe it can?
-        // Let's assume asset stays in facility.
-        if (targetRoom == 0) return false;
-        
-        // Find path using BFS
-        List<Integer> path = findPath(assetLocation, targetRoom);
-        
-        if (path == null || path.isEmpty()) {
-            return false; // No valid path (blocked by locks or disconnected)
-        }
-        
-        // Check if entity is on the path
-        for (int room : path) {
-            if (room == entityLocation) {
-                // Entity encountered! Game Over logic handled by caller checking isAssetDead
-                // But we need to move asset to that room to trigger the death condition visually/logically
-                assetLocation = room; 
-                return true; // Move successful (but fatal)
-            }
-        }
-        
-        // Move asset to target
-        assetLocation = targetRoom;
-        return true;
+    public void setAssetLocation(int loc) {
+        this.assetLocation = loc;
     }
     
-    private List<Integer> findPath(int start, int end) {
+    public List<Integer> findPath(int start, int end) {
         if (start == end) return new ArrayList<>();
         
         Queue<Integer> queue = new LinkedList<>();
@@ -367,5 +346,21 @@ public class GameState {
     
     public int getDifficultyLevel() {
         return difficultyLevel;
+    }
+    
+    public void setCurrentHour(int hour) {
+        this.currentHour = hour;
+    }
+    
+     public void setCurrentMinute(int minute) {
+        this.currentMinute = minute;
+    }
+    
+    public int getCurrentHour() {
+        return currentHour;
+    }
+    
+     public int getCurrentMinute() {
+        return currentMinute;
     }
 }

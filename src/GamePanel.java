@@ -35,16 +35,29 @@ public class GamePanel extends JPanel {
     
     // Timer for the 2-second kill delay
     private Timer killTimer;
-    private boolean killPending = false; // Flag to prevent multiple kill triggers
-    private String pendingKillCause = ""; // "player" or "asset"
+    private boolean killPending = false; 
+    private String pendingKillCause = ""; 
+    
+    // Asset Movement Animation
+    private Timer assetMoveTimer;
+    private List<Integer> assetMovePath;
+    private int assetMoveIndex;
     
     // Pause State
     private boolean isPaused = false;
     private JButton pauseButton;
+    
+    // Night Progression
+    private int currentNight;
+    private int currentHour = 12; // 12 AM
+    private int currentMinute = 0;
+    private Timer timeTimer; // Renamed from hourTimer
+    private boolean nightTransition = false;
 
-    public GamePanel(Main mainFrame, int difficulty) {
+    public GamePanel(Main mainFrame, int difficulty, int night) {
         this.mainFrame = mainFrame;
-        this.gameState = new GameState(difficulty); // Pass difficulty to GameState
+        this.currentNight = night;
+        this.gameState = new GameState(difficulty); 
         
         setLayout(new BorderLayout());
         setBackground(Theme.CRT_BLACK);
@@ -75,6 +88,15 @@ public class GamePanel extends JPanel {
         // Map View
         mapPanel = new MapPanel(gameState);
         
+        // Night Transition Panel
+        JPanel transitionPanel = new JPanel(new GridBagLayout());
+        transitionPanel.setBackground(Theme.CRT_BLACK);
+        JLabel nightLabel = new JLabel("NIGHT " + currentNight);
+        nightLabel.setFont(new Font("Monospaced", Font.BOLD, 48));
+        nightLabel.setForeground(Theme.CRT_GREEN);
+        transitionPanel.add(nightLabel);
+        
+        viewPanel.add(transitionPanel, "TRANSITION");
         viewPanel.add(scrollPane, "LOG");
         viewPanel.add(mapPanel, "MAP");
         
@@ -125,8 +147,7 @@ public class GamePanel extends JPanel {
         bottomPanel.add(inputField, BorderLayout.SOUTH);
         add(bottomPanel, BorderLayout.SOUTH);
 
-        // --- Game Loop Timer (Every 5 seconds) ---
-        // AI movement speed based on difficulty
+        // --- Game Loop Timer ---
         int moveInterval = 5000; // Easy
         if (difficulty == 2) moveInterval = 4000; // Normal
         if (difficulty == 3) moveInterval = 3000; // Hard
@@ -137,16 +158,82 @@ public class GamePanel extends JPanel {
                 gameTick();
             }
         });
-        gameLoopTimer.start();
-
-        // Initial Message
-        log("SYSTEM BOOT SEQUENCE INITIATED...", Theme.CRT_GREEN);
-        log("DIFFICULTY SET TO: " + getDifficultyString(difficulty), Theme.CRT_GREEN);
-        log("CONNECTION ESTABLISHED.", Theme.CRT_GREEN);
-        log("WARNING: UNKNOWN ENTITY DETECTED IN CONTAINMENT.", Theme.CRT_AMBER);
-        log("MISSION: PROTECT THE ASSET. MOVE IT TO SAFETY.", Theme.CRT_GREEN);
-        log("Type 'help' for commands.", Theme.CRT_GREEN);
-        SoundManager.playStartup();
+        
+        // --- Time Timer (Updates every ~1 second real time to simulate minutes) ---
+        // 1 hour = 60 seconds real time.
+        // 60 minutes = 60 seconds -> 1 minute = 1 second.
+        timeTimer = new Timer(1000, e -> advanceTime());
+        
+        // Start Sequence
+        startNightSequence();
+    }
+    
+    private void startNightSequence() {
+        // Show "NIGHT X" screen
+        viewLayout.show(viewPanel, "TRANSITION");
+        inputField.setEnabled(false);
+        commandPanel.setVisible(false);
+        
+        Timer startTimer = new Timer(3000, e -> {
+            viewLayout.show(viewPanel, "LOG");
+            inputField.setEnabled(true);
+            commandPanel.setVisible(true);
+            
+            // Start Game Logic
+            gameLoopTimer.start();
+            timeTimer.start();
+            
+            // Initial Messages
+            log("SYSTEM BOOT SEQUENCE INITIATED...", Theme.CRT_GREEN);
+            log("NIGHT " + currentNight + " STARTED.", Theme.CRT_GREEN);
+            log("TIME: 12:00 AM", Theme.CRT_GREEN);
+            log("CONNECTION ESTABLISHED.", Theme.CRT_GREEN);
+            log("WARNING: UNKNOWN ENTITY DETECTED IN CONTAINMENT.", Theme.CRT_AMBER);
+            log("MISSION: PROTECT THE ASSET. MOVE IT TO SAFETY.", Theme.CRT_GREEN);
+            SoundManager.playStartup();
+        });
+        startTimer.setRepeats(false);
+        startTimer.start();
+    }
+    
+    private void advanceTime() {
+        currentMinute++;
+        if (currentMinute >= 60) {
+            currentMinute = 0;
+            currentHour++;
+            if (currentHour > 12) currentHour = 1;
+            
+            // Log hour change
+            String timeStr = String.format("%d:00 AM", currentHour);
+            log("TIME UPDATE: " + timeStr, Theme.CRT_GREEN);
+        }
+        
+        gameState.setCurrentHour(currentHour);
+        gameState.setCurrentMinute(currentMinute);
+        monitorPanel.repaint(); // Update monitor to show new time
+        
+        if (currentHour == 6 && currentMinute == 0) {
+            endNight();
+        }
+    }
+    
+    private void endNight() {
+        gameLoopTimer.stop();
+        timeTimer.stop();
+        inputField.setEnabled(false);
+        commandPanel.setVisible(false);
+        
+        // Show 6:00 AM screen
+        JPanel transitionPanel = (JPanel) viewPanel.getComponent(0); // Assuming index 0 is TRANSITION
+        JLabel label = (JLabel) transitionPanel.getComponent(0);
+        label.setText("6:00 AM");
+        viewLayout.show(viewPanel, "TRANSITION");
+        
+        Timer endTimer = new Timer(3000, e -> {
+            mainFrame.completeNight();
+        });
+        endTimer.setRepeats(false);
+        endTimer.start();
     }
     
     private String getDifficultyString(int diff) {
@@ -162,16 +249,20 @@ public class GamePanel extends JPanel {
         isPaused = !isPaused;
         if (isPaused) {
             gameLoopTimer.stop();
+            timeTimer.stop();
             if (breachTimer != null && breachTimer.isRunning()) breachTimer.stop();
-            if (killTimer != null && killTimer.isRunning()) killTimer.stop(); // Pause kill timer
+            if (killTimer != null && killTimer.isRunning()) killTimer.stop(); 
+            if (assetMoveTimer != null && assetMoveTimer.isRunning()) assetMoveTimer.stop(); 
             log("SYSTEM PAUSED.", Theme.CRT_AMBER);
             inputField.setEnabled(false);
             pauseButton.setText("RESUME");
             pauseButton.setForeground(Theme.CRT_AMBER);
         } else {
             gameLoopTimer.start();
+            timeTimer.start();
             if (breachPending && breachTimer != null) breachTimer.start();
-            if (killPending && killTimer != null) killTimer.start(); // Resume kill timer
+            if (killPending && killTimer != null) killTimer.start(); 
+            if (assetMoveTimer != null && assetMovePath != null) assetMoveTimer.start(); 
             log("SYSTEM RESUMED.", Theme.CRT_GREEN);
             inputField.setEnabled(true);
             pauseButton.setText("PAUSE");
@@ -293,19 +384,16 @@ public class GamePanel extends JPanel {
             try {
                 int targetRoom = Integer.parseInt(command.substring(11).trim());
                 
-                // Set asset moving flag to pause entity
-                gameState.setAssetMoving(true);
+                // Find path
+                List<Integer> path = gameState.findPath(gameState.getAssetLocation(), targetRoom);
                 
-                if (gameState.moveAsset(targetRoom)) {
-                     log("ASSET MOVED TO ROOM " + targetRoom, Theme.CRT_GREEN);
-                     SoundManager.playKeyClick();
+                if (path != null && !path.isEmpty()) {
+                    log("INITIATING ASSET TRANSFER TO ROOM " + targetRoom + "...", Theme.CRT_GREEN);
+                    SoundManager.playKeyClick();
+                    startAssetMoveAnimation(path);
                 } else {
-                     log("CANNOT MOVE ASSET THERE (BLOCKED/INVALID).", Theme.ALERT_RED);
+                    log("CANNOT MOVE ASSET THERE (BLOCKED/INVALID).", Theme.ALERT_RED);
                 }
-                
-                // Reset flag
-                gameState.setAssetMoving(false);
-
             } catch (NumberFormatException e) {
                 log("INVALID ROOM ID.", Theme.ALERT_RED);
             }
@@ -422,6 +510,49 @@ public class GamePanel extends JPanel {
         updateCommandButtons(); 
         monitorPanel.repaint();
         mapPanel.repaint();
+    }
+
+    private void startAssetMoveAnimation(List<Integer> path) {
+        assetMovePath = path;
+        assetMoveIndex = 0;
+        gameState.setAssetMoving(true);
+
+        // Disable input during move
+        inputField.setEnabled(false);
+        gameLoopTimer.stop(); // Pause game loop so entity doesn't move
+
+        assetMoveTimer = new Timer(500, new ActionListener() {
+            @Override
+            public void actionPerformed(ActionEvent e) {
+                if (assetMoveIndex < assetMovePath.size()) {
+                    int nextRoom = assetMovePath.get(assetMoveIndex);
+                    gameState.setAssetLocation(nextRoom);
+
+                    // Check if ran into entity
+                    if (gameState.isAssetDead()) {
+                        assetMoveTimer.stop();
+                        log("CRITICAL ERROR: CONTACT WITH ASSET LOST.", Theme.ALERT_RED);
+                        SoundManager.playAlarm();
+                        pendingKillCause = "asset";
+                        startKillTimer(2000);
+                        return;
+                    }
+
+                    SoundManager.playKeyClick(); // Beep for each step
+                    mapPanel.repaint();
+                    monitorPanel.repaint();
+                    assetMoveIndex++;
+                } else {
+                    // Done
+                    assetMoveTimer.stop();
+                    gameState.setAssetMoving(false);
+                    inputField.setEnabled(true);
+                    gameLoopTimer.start(); // Resume game loop
+                    log("ASSET TRANSFER COMPLETE.", Theme.CRT_GREEN);
+                }
+            }
+        });
+        assetMoveTimer.start();
     }
     
     private void checkBreachResolution() {
@@ -548,7 +679,7 @@ public class GamePanel extends JPanel {
             if (pendingKillCause.equals("player")) {
                 mainFrame.triggerGameOver(); // Jumpscare then death screen
             } else if (pendingKillCause.equals("asset")) {
-                mainFrame.showDeathScreen("ASSET TERMINATED"); // Direct to death screen
+                mainFrame.showDeathScreen("THE ASSET HAS BEEN COMPROMISED"); // Direct to death screen
             } else if (pendingKillCause.equals("power")) {
                 mainFrame.showDeathScreen("POWER FAILURE"); // Direct to death screen
             }
